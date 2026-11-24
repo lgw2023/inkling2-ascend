@@ -37,3 +37,8 @@ SHA 是可复现的源码参考 pin，不表示这些仓库构成已经验证兼
 4. llama.cpp / Maya：研究 GGUF 量化、缓存、算子融合和低显存优化。
 
 Maya 仓库代码为 MIT，但树中还包含其他第三方许可。各 submodule 的 LICENSE/NOTICE 仍然有效；复制代码时保留原始 SPDX、版权和许可声明。
+
+
+## V1 Model Runner 决策
+
+项目明确只使用 V1 Model Runner，不采用 MRV2。历史实现固定在 `f16e5e26801f86b071bca6454c9b9b2b63362e0a`，选定版本后需要回移/适配；不要把历史 runner 与当前 main 的 V2 worker 直接混用。细节见 [runner-selection.md](../docs/runner-selection.md)。

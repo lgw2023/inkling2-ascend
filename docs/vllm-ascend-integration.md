@@ -4,6 +4,10 @@
 
 ## 1. 适配边界与开发顺序
 
+**执行器决策（用户明确要求）：只适配 Ascend Model Runner V1，禁止采用 Model Runner V2（MRV2）。** 这不是只把配置开关设为 false：当前 vLLM Ascend main 阅读快照已采用 `worker/v2/model_runner.py`，不再包含旧的 `worker/v1/model_runner.py`。因此实施前必须选定与 vLLM V1 engine API 兼容的版本组合，并将历史 V1 runner 回移/适配到项目分支；不得把当前 main 的 V2 runner 当作实现基底。
+
+历史参考：vLLM Ascend commit [`f16e5e26801f86b071bca6454c9b9b2b63362e0a`](https://github.com/vllm-project/vllm-ascend/commit/f16e5e26801f86b071bca6454c9b9b2b63362e0a) 中，V1 runner 位于 `vllm_ascend/worker/v1/model_runner.py`，`worker.py` 在 `use_v2_model_runner=False` 时实例化该类。该提交只作为 V1 代码结构参考，不能视为与当前 vLLM Mini 实现已经兼容。
+
 首期范围为 A2 910B1、纯文本、固定三次循环、BF16 计算基线、eager 执行、单机 TP2/TP4，随后 TP8。图像、ACL Graph、低精度 NPU 原生专家、DSpark/MTP、LoRA 和服务侧高级缓存功能分别验收。A5 用同一语义基线建立独立的设备与软件验证记录。
 
 上游 Mini PR [#69028](https://github.com/vllm-project/vllm/pull/69028) 已合并并提供 NVIDIA 路径。Ascend [#20831](https://github.com/vllm-project/vllm-ascend/pull/20831) 是旧 Inkling/MTP 的草稿，只包含初始辅助函数且尚未接入运行时；它不能作为 Mini 已获 NPU 支持的依据。
@@ -31,7 +35,9 @@
 | P1 | `vllm_ascend/ops/inkling2/loop.py` | 新增 pair norm、BMM、FP32 blend、RMSNorm | 保留指定舍入点，无错误 stream 广播 |
 | P1 | `vllm_ascend/ops/inkling2/attention.py` | 新增相对偏置 paged attention，返回输出与 LSE；可拆 prologue / gate | SWA/full、跨块、混合 batch 通过 |
 | P1 | `vllm_ascend/ops/inkling2/sconv.py` | 新增静态/动态 conv kernel 及 cache 更新 | 非连续布局和块边界通过 |
-| 按需 | `vllm_ascend/worker/v2/model_runner.py` | 优先复用现有缓存配置发现、绑定及 metadata 生命周期；仅在新 backend 不适配时作小范围扩展 | 不改变 scheduler 的逻辑配置；物理 view/zeroer 正确 |
+| P0 | `vllm_ascend/worker/v1/model_runner.py` | **目标执行器**：从历史 V1 runner 回移并适配当前选定 vLLM V1 API；负责 `get_kv_cache_spec()`、`initialize_kv_cache()`、layer binding、forward metadata 和 `execute_model()` | 纯文本请求全程只经过 V1 runner；不导入/实例化 MRV2 |
+| P0 | `vllm_ascend/worker/worker.py` | 选择并实例化 V1 `NPUModelRunner`；启动时检查 `use_v2_model_runner=False`，拒绝误入 V2 | 启动日志明确报告 V1；测试确认 V2 构造器未被调用 |
+| 按需 | `vllm_ascend/worker/v1/kv_block_zeroer.py` | 只在 V1 Cache 生命周期确有需要时接入块清零；遵循 V1 的 block reuse 语义 | 请求回收、块复用无状态残留 |
 | 按需 | `vllm_ascend/ops/fused_moe/fused_moe.py` | 优先使用适配层；确认通用接口无法表达 SiTU/路由后再扩展 | 输出归约语义明确，其他模型回归通过 |
 | P2 | `vllm_ascend/models/inkling2/vision.py` | 新增图像 encoder、projector 的 NPU 运算替换；复用经确认的 processor 契约 | 文图 token 拼接、尺寸与图像样本对齐 |
 | P0/P1 | `tests/ut/models/test_inkling2_*.py`、`tests/e2e/inkling2/` | 拟新增单元、缓存集成、分布式与服务测试 | 按 [验收计划](benchmark-plan.md) 分层放行 |
@@ -84,5 +90,6 @@ ModelRegistry.register_model(
 - [循环驱动](https://github.com/vllm-project/vllm/blob/ab18334a4f60da74db7de89fe95594e5ed0cda36/vllm/models/inkling2/nvidia/loop.py)
 - [专家与路由包装](https://github.com/vllm-project/vllm/blob/ab18334a4f60da74db7de89fe95594e5ed0cda36/vllm/models/inkling2/nvidia/moe.py)
 - [Ascend 模型注册](https://github.com/vllm-project/vllm-ascend/blob/1999fa582aba279dc4214de7ea3035535917d4c4/vllm_ascend/models/__init__.py)
-- [Ascend V2 runner](https://github.com/vllm-project/vllm-ascend/blob/1999fa582aba279dc4214de7ea3035535917d4c4/vllm_ascend/worker/v2/model_runner.py)
+- [历史 Ascend V1 runner](https://github.com/vllm-project/vllm-ascend/blob/f16e5e26801f86b071bca6454c9b9b2b63362e0a/vllm_ascend/worker/v1/model_runner.py)
+- [历史 Ascend worker 的 V1/V2 选择逻辑](https://github.com/vllm-project/vllm-ascend/blob/f16e5e26801f86b071bca6454c9b9b2b63362e0a/vllm_ascend/worker/worker.py)
 - [Ascend MoE runner](https://github.com/vllm-project/vllm-ascend/blob/1999fa582aba279dc4214de7ea3035535917d4c4/vllm_ascend/ops/fused_moe/fused_moe.py)

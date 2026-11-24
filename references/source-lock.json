@@ -71,5 +71,15 @@
       "path": "references/upstream/dynamo",
       "kind": "git-submodule"
     }
-  ]
+  ],
+  "ascend_v1_runner_reference": {
+    "repository": "https://github.com/vllm-project/vllm-ascend",
+    "commit": "f16e5e26801f86b071bca6454c9b9b2b63362e0a",
+    "files": [
+      "vllm_ascend/worker/v1/model_runner.py",
+      "vllm_ascend/worker/worker.py"
+    ],
+    "purpose": "historical V1 Model Runner implementation and worker selection logic",
+    "note": "reference only; requires API backport/qualification against the selected vLLM V1 engine; current main snapshot no longer contains this V1 path"
+  }
 }

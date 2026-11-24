@@ -18,6 +18,7 @@
 
 - [ ] **ENV-01** 采集 CANN / NNAL、驱动、固件、torch / torch_npu、vLLM / vLLM Ascend 的实际版本，记录 A5 显存与 SKU。
 - [ ] **SRC-01** 以来源文档中的源码快照建立工作分支，验证该组合接口；补齐依赖锁，不直接把两个 SHA 称为兼容组合。
+- [ ] **RUNNER-01** 固定 vLLM V1 engine 版本；从历史 Ascend V1 runner 参考回移/适配 `worker/v1/model_runner.py` 与 worker 选择逻辑；启动时强制 `use_v2_model_runner=False`，增加断言确保 MRV2 不被构造。
 - [ ] **LOAD-01** 读取模型索引和 `hf_quant_config.json`，导出逐 tensor 的格式、shape、scale、block shape 与目标 dtype manifest。
 - [ ] **LOAD-02** 流式解量化与分片加载 BF16 专家，保留 FP32 参数，验证缺失/额外键和重复加载。
 - [ ] **MODEL-01** 在 vLLM Ascend 注册 `Inkling2LoopForConditionalGeneration` 的 Ascend 实现；不从 CUDA 模块直接导入运行路径。
@@ -26,7 +27,7 @@
 - [ ] **OP-02** 实现静态 / 动态短卷积与 4 流状态读写，覆盖 page 边界和混批。
 - [ ] **ATTN-01** 实现 relative GQA、clip、norm、sink / gate 与 LSE 的一致性路径。
 - [ ] **MOE-01** 实现 BF16 expert 与路由契约，明确专家分片、通信和输出是否已经 reduce。
-- [ ] **CACHE-01** 接入 backend spec / metadata、缓存视图和 slot mapping；以集成测试决定是否需要 runner / manager 扩展。
+- [ ] **CACHE-01** 按 V1 runner 的 cache spec / metadata / slot mapping 生命周期接入；不采用 MRV2 shared-backing 专用接口；以 V1 集成测试决定是否需要最小 runner 扩展。
 - [ ] **TEXT-01** eager、无 speculative、无 prefix caching、关闭 image，小上下文服务跑通。
 - [ ] **TEST-01** 执行数值 / 缓存 / 服务测试，保存机器可读报告，填写 qualification。
 - [ ] **PERF-01** 测量 batch、context、TP 与多实例矩阵，选择可解释的优化目标。

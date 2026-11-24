@@ -8,7 +8,8 @@
 |---|---|---|
 | vLLM Mini 引入提交 | `ab18334a4f60da74db7de89fe95594e5ed0cda36` | 由 PR #69028 的 `merge_commit_sha` 取得；核心源码已按该 ref 读取 |
 | Mini 发布模型初始上传 | `1fb4134b9a74f9681054f4ef82e4bf1f458a2337` | HF commit 页面提供 `config.json` 及量化 metadata；生产应固定实际下载 revision |
-| vLLM Ascend 阅读快照 | `1999fa582aba279dc4214de7ea3035535917d4c4` | 已按该 ref 复读 registry、runner V2、fused MoE；这是阅读基准，尚未选定经过实机验证的工程组合 |
+| vLLM Ascend 当前阅读快照 | `1999fa582aba279dc4214de7ea3035535917d4c4` | 用于核对 registry、MoE 和当前代码结构；该快照走 `worker/v2/model_runner.py`，**不作为本项目执行器基底** | 
+| vLLM Ascend 历史 V1 runner 参考 | `f16e5e26801f86b071bca6454c9b9b2b63362e0a` | 包含 `worker/v1/model_runner.py` 和 V1/V2 选择逻辑；作为 V1 回移参考，不是与当前 vLLM Mini 已验证的版本组合 |
 | 本机软件和 A5 显存 | 尚未采集 | 用户已确认存在 CANN 环境，未提供具体版本与 A5 容量 |
 
 注意：GitHub 文件接口的 `sha` 通常是 blob SHA，不能当作仓库 commit pin。本表的 vLLM SHA 来自 PR 合并元数据，Ascend SHA 来自仓库提交记录并已据此复读文件。**两个源码快照不是经过验证的兼容软件组合。** 开始实现时应核对双方接口及配套依赖，完成版本资格验证。
@@ -41,7 +42,9 @@
 算子和 cache 的更细引用见 [operator-design.md](operator-design.md)、[cache-and-loop.md](cache-and-loop.md) 及 [vllm-ascend-integration.md](vllm-ascend-integration.md)。Ascend 阅读快照上的关键入口如下：
 
 - [模型注册入口 `vllm_ascend/models/__init__.py`](https://github.com/vllm-project/vllm-ascend/blob/1999fa582aba279dc4214de7ea3035535917d4c4/vllm_ascend/models/__init__.py)。
-- [NPU model runner V2](https://github.com/vllm-project/vllm-ascend/blob/1999fa582aba279dc4214de7ea3035535917d4c4/vllm_ascend/worker/v2/model_runner.py)。
+- [当前 Ascend Model Runner V2（仅用于识别并排除）](https://github.com/vllm-project/vllm-ascend/blob/1999fa582aba279dc4214de7ea3035535917d4c4/vllm_ascend/worker/v2/model_runner.py)。
+- [历史 Ascend V1 Model Runner](https://github.com/vllm-project/vllm-ascend/blob/f16e5e26801f86b071bca6454c9b9b2b63362e0a/vllm_ascend/worker/v1/model_runner.py)。
+- [历史 worker V1/V2 选择逻辑](https://github.com/vllm-project/vllm-ascend/blob/f16e5e26801f86b071bca6454c9b9b2b63362e0a/vllm_ascend/worker/worker.py)。
 - [Ascend fused MoE](https://github.com/vllm-project/vllm-ascend/blob/1999fa582aba279dc4214de7ea3035535917d4c4/vllm_ascend/ops/fused_moe/fused_moe.py)。
 
 ## 4. Ascend 与旧 Inkling 记录
@@ -116,3 +119,8 @@
 ## 9. 模型专用源码快照与参考索引
 
 本仓库新增 `reference-snapshots/tokenspeed/`、`reference-snapshots/unsloth/` 和 `reference-snapshots/dynamo/`。内容包括 TokenSpeed 的 Inkling runtime/GFX950 kernel/test，Unsloth 的 Inkling2/FlexAttention/loader，以及 Dynamo 的 Mini SGLang deployment manifests。许可证文本随快照保存；完整上游版本由 submodule 固定。Hugging Face 博客文章只保留链接，不复制全文。统一索引见 [references/articles/README.md](../references/articles/README.md)，快照说明见 [reference-snapshots/README.md](../reference-snapshots/README.md)。
+
+
+## 10. Model Runner 选择约束（用户决策）
+
+本项目只采用 Ascend Model Runner V1，明确不适配 MRV2。当前 vLLM Ascend 阅读快照 `1999fa...` 已不含 `worker/v1/model_runner.py`；历史 commit `f16e5e26801f86b071bca6454c9b9b2b63362e0a` 含 V1 runner 与 worker 选择逻辑。该历史版本作为代码结构参考，需要回移/适配到实际选定的 vLLM V1 engine API。不能将旧文件不经适配直接与当前 main 拼装。

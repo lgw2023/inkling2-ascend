@@ -70,7 +70,7 @@ $$
 
 同一 forward 内的旧 taps 从不可变输入读取；早于本次 query 开始的 taps 才从历史 cache 读取。新请求起始不足窗口的部分按参考实现填零。padding 不写状态、不参与路由，也不污染 LSE 或输出。decode/prefill 混排时，所有 per-token metadata 必须采用同一 token 排序。
 
-Ascend V2 runner 已有共享 backing 与 backend-specific view 机制。优先通过新 backend 接入；检查 `initialize_kv_cache()` 的物理 view、清零器和别名行为后，再决定是否修改 runner。不能仅因上游 GPU 无需改 manager 就断言 NPU 无需改动。阅读依据：[NPUModelRunner](https://github.com/vllm-project/vllm-ascend/blob/1999fa582aba279dc4214de7ea3035535917d4c4/vllm_ascend/worker/v2/model_runner.py)。
+本项目不采用 MRV2 的共享 backing / backend-specific view 接入路径。缓存接入以 V1 runner 的 `get_kv_cache_spec()`、`initialize_kv_cache()`、V1 attention layer binding 和 `AttentionMetadataBuilder` 生命周期为准。将 Attention KV 与 Conv State 注册为 V1 可发现的 cache owner，由 V1 worker 完成分配、绑定和请求块回收；若 V1 接口无法表达某种 cache layout，再在 V1 runner / cache binding 层做最小扩展。历史接口参考：[V1 model_runner.py](https://github.com/vllm-project/vllm-ascend/blob/f16e5e26801f86b071bca6454c9b9b2b63362e0a/vllm_ascend/worker/v1/model_runner.py) 与 [V1 worker.py](https://github.com/vllm-project/vllm-ascend/blob/f16e5e26801f86b071bca6454c9b9b2b63362e0a/vllm_ascend/worker/worker.py)。当前 Ascend main 已无该旧路径，必须回移/适配，不能把旧文件直接覆盖到新版本。
 
 ## 5. 内存估算规则
 

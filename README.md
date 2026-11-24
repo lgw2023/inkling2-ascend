@@ -15,7 +15,7 @@
 | A2：910B1，单卡 64 GB，单机八卡 | 以 BF16 解量化权重、eager、小上下文开始；完整模型优先 TP=2 或 TP=4；逐步验证 TP=8 |
 | A5：950PR / 950DT，单卡显存未确认 | 先采集具体设备、驱动、固件、CANN 与显存；分别建立验证记录 |
 | 已有 CANN，版本未提供 | 锁定实际软件组合后建基线，参考组合不能替代本机版本确认 |
-| 目标引擎 vLLM Ascend | 新增模型实现和 backend，优先复用公共调度器与缓存管理接口 |
+| 目标引擎 vLLM Ascend | **只使用 V1 Model Runner；明确排除 MRV2**。新增 V1 模型/backend 接入，优先复用 V1 scheduler 与 cache manager |
 | 先文本、后图像 | 首期显式关闭 image 输入；图像阶段单独验收处理器、编码器、特征映射与调度 |
 
 ### 已核实且影响设计的细节
@@ -80,7 +80,7 @@ python3 -m unittest discover -s tests -v
 | A2 / A5 模型数值对齐和推理 | 待执行 |
 | 吞吐、TTFT、TPOT、显存与扩展效率 | 待测量，无预填性能值 |
 
-首个验收目标是 **A2 上固定 checkpoint、固定软件版本、固定 loop 次数的纯文本正确性基线**，通过后再优化算子、图模式、批处理和多卡扩展。
+首个验收目标是 **A2 上固定 checkpoint、固定软件版本、V1 Model Runner、固定 loop 次数的纯文本正确性基线**。启动必须确认 `use_v2_model_runner=False`；任何 MRV2 runner 入口均视为不符合项目要求。通过后再优化算子、图模式、批处理和多卡扩展。
 
 ## 协作
 
@@ -90,3 +90,8 @@ python3 -m unittest discover -s tests -v
 ## 上游推理源码
 
 已固定 vLLM、vLLM Ascend、SGLang、Transformers、llama.cpp、Maya、TokenSpeed、Unsloth 和 NVIDIA Dynamo 的上游 commit，并补充 TokenSpeed、NVIDIA Dynamo、Unsloth、Ollama、Exo、Miles 与 SkyRL 的官方生态入口。使用 `git clone --recurse-submodules` 下载完整参考代码。版本锁、权重 revision 和许可证说明见 [references/README.md](references/README.md)。
+
+
+## 执行器约束
+
+本项目只适配 Ascend Model Runner V1，不适配 Model Runner V2（MRV2）。当前 vLLM Ascend main 已不包含历史 V1 runner 路径；需要在项目选定分支中回移/适配历史 V1 runner。历史源码与版本说明见 [V1 runner 决策](docs/runner-selection.md)。
