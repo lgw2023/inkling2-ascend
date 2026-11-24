@@ -88,3 +88,17 @@
 官方模型卡还列出 TokenSpeed、Unsloth、Llama App，以及 Apple Silicon 上的 Ollama / Exo，可作为补充兼容性参考。昇腾移植优先研究 vLLM、vLLM Ascend、SGLang、Transformers 与 llama.cpp。
 
 官方 HF checkpoint 标注 Apache-2.0；Maya 根目录 LICENSE 为 MIT，仓库中还存在其他第三方许可。约 20.2 GB 的官方权重不提交 Git，使用固定 HF revision 单独下载。复制上游代码时保留各自 SPDX、LICENSE 和 NOTICE。
+
+
+### 官方模型卡列出的完整生态（补充核验）
+
+模型卡还明确列出以下框架/服务入口，均值得纳入后续兼容性矩阵：
+
+- [TokenSpeed](https://lightseek.org/tokenspeed/recipes/models#inkling-2-mini)：模型卡明确列为支持的推理框架，需单独核对其模型实现与昇腾支持范围。
+- [NVIDIA Dynamo](https://github.com/ai-dynamo/dynamo)：分布式 serving 编排；官方 recipe 以 SGLang 为执行引擎，适合参考多实例与调度部署。
+- [Unsloth](https://unsloth.ai/docs/inkling-2-mini)：量化权重和 GGUF 生成/部署入口。
+- [Ollama](https://ollama.com/library/inkling-2-mini) 与 [Exo Labs](https://github.com/exo-explore/exo)：Apple Silicon 推理路线，不是昇腾算子参考。
+- [Miles](https://miles.radixark.com/docs/models/thinkingmachines/inkling-2-mini)、[SkyRL](https://github.com/SkyRL-Team/SkyRL)：后训练/强化学习生态，不是首期推理后端。
+- [SGLang 官方 Mini cookbook](https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling-2-Mini)：应与其上游源码一起作为 serving 对照。
+
+官方模型卡与发布公告将 Hugging Face、SGLang、vLLM、TokenSpeed、NVIDIA Dynamo、Unsloth、llama.cpp、Llama App 及 Apple Silicon 上的 Ollama/Exo 列为部署选择。可参见 [官方模型卡](https://huggingface.co/thinkingmachines/Inkling-2-Mini) 与 [Thinking Machines 发布公告](https://thinkingmachines.ai/news/inkling-2-mini/)。这不是对每个设备/版本组合的验证承诺；本项目仍需单独资格验证。
