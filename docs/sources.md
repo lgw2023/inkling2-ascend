@@ -102,3 +102,13 @@
 - [SGLang 官方 Mini cookbook](https://docs.sglang.io/cookbook/autoregressive/ThinkingMachines/Inkling-2-Mini)：应与其上游源码一起作为 serving 对照。
 
 官方模型卡与发布公告将 Hugging Face、SGLang、vLLM、TokenSpeed、NVIDIA Dynamo、Unsloth、llama.cpp、Llama App 及 Apple Silicon 上的 Ollama/Exo 列为部署选择。可参见 [官方模型卡](https://huggingface.co/thinkingmachines/Inkling-2-Mini) 与 [Thinking Machines 发布公告](https://thinkingmachines.ai/news/inkling-2-mini/)。这不是对每个设备/版本组合的验证承诺；本项目仍需单独资格验证。
+
+
+## 8. 新增推理实现仓库（2026-11-24）
+
+- [TokenSpeed](https://github.com/lightseekorg/tokenspeed)：已找到 Mini 专用 `runtime/models/inkling.py`、GFX950 Inkling2 monokernel 的 attention/conv/mix/experts/route/quant/head/layer/plan/dims，以及专用测试。其 GFX950 实现针对 AMD GPU，不是 Ascend Kernel；可借鉴算子融合、调度、分块与数值测试，不可直接在昇腾执行。
+- [Unsloth](https://github.com/unslothai/unsloth)：包含 `unsloth/models/inkling2.py`、`inkling2_flex.py`、loader 适配。适合研究模型加载、FlexAttention、LoRA/训练适配和权重处理。注意模型相关源码文件带有 AGPL-3.0-only SPDX，和仓库其他 Apache-2.0 组件分开处理。
+- [NVIDIA Dynamo](https://github.com/ai-dynamo/dynamo)：包含 Inkling 2 Mini + SGLang 的 B200/VR200 聚合与 disaggregated Kubernetes recipes、模型缓存和下载 YAML。它是部署编排参考，不是新的模型算子实现。
+- [Hugging Face Mini 专题](https://github.com/huggingface/blog/blob/6229fabe5f27f7934d825940853bcc1369528c2f/inkling2mini.md) 与 [原 Inkling 文章](https://github.com/huggingface/blog/blob/6229fabe5f27f7934d825940853bcc1369528c2f/thinkingmachines-inkling.md)：保留链接和来源信息，不复制整篇受版权保护的文章。
+
+上述三套新代码仓库已经作为固定 commit 的 submodule 加入；模型专用文件快照及许可证说明见 `reference-snapshots/`。完整仓库体积较大，推荐先按需初始化 submodule，不必一次下载全部框架。

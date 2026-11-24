@@ -21,3 +21,15 @@
 [submodule "references/upstream/maya-inkling-mini"]
 	path = references/upstream/maya-inkling-mini
 	url = https://github.com/alesha-pro/maya-inkling-mini.git
+
+[submodule "references/upstream/tokenspeed"]
+	path = references/upstream/tokenspeed
+	url = https://github.com/lightseekorg/tokenspeed.git
+
+[submodule "references/upstream/unsloth"]
+	path = references/upstream/unsloth
+	url = https://github.com/unslothai/unsloth.git
+
+[submodule "references/upstream/dynamo"]
+	path = references/upstream/dynamo
+	url = https://github.com/ai-dynamo/dynamo.git

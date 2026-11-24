@@ -1,10 +1,13 @@
 # 上游推理源码参考
 
-本目录通过 Git submodule 固定六个上游推理仓库的 commit。完整代码由 Git submodule 提供，不重复复制全部上游历史。克隆并下载源码：
+本目录通过 Git submodule 固定九个上游推理仓库的 commit。完整代码由 Git submodule 提供，不重复复制全部上游历史。克隆并下载源码：
 
 ```bash
-git clone --recurse-submodules https://github.com/lgw2023/inkling2-ascend.git
-# 已有 checkout:
+git clone https://github.com/lgw2023/inkling2-ascend.git
+cd inkling2-ascend
+# 先拉与模型开发直接相关的仓库（按需选择）：
+git submodule update --init references/upstream/vllm references/upstream/vllm-ascend references/upstream/transformers references/upstream/tokenspeed references/upstream/unsloth
+# 需要全部完整上游源码时：
 git submodule update --init --recursive
 ```
 
@@ -16,6 +19,9 @@ git submodule update --init --recursive
 | [Transformers](https://github.com/huggingface/transformers) | HF 模型、processor 和参考前向 | `d8f10a82213a3a9db48385aba3a4b57ab535de50` |
 | [llama.cpp](https://github.com/ggml-org/llama.cpp) | GGUF、量化和独立推理实现 | `af5c58347fdbc2cd19e65b278e81c8f528f8a175` |
 | [Maya Inkling Mini](https://github.com/alesha-pro/maya-inkling-mini) | MIT 许可的 CUDA/HIP 优化实现 | `27daec5e608aa59dab45184e82a1f0611ea7c1aa` |
+| [TokenSpeed](https://github.com/lightseekorg/tokenspeed) | Inkling2 runtime、gfx950 monokernel、测试和 serving recipe | `ffdc204c6e6c9c96e2c801b9fac2f2ed5ab7c237` |
+| [Unsloth](https://github.com/unslothai/unsloth) | Inkling2 Mini loader、FlexAttention 和训练支持 | `da7b561499a3fbbfc625f665f284342bee792691` |
+| [NVIDIA Dynamo](https://github.com/ai-dynamo/dynamo) | Inkling 2 Mini SGLang 聚合/分离部署 recipes | `28697ef5c4115d2fd5793b8f1065ed711e5459cc` |
 
 SHA 是可复现的源码参考 pin，不表示这些仓库构成已经验证兼容的软件组合。尤其不能把最新 vLLM 与最新 vLLM Ascend 自动视为配套 release。
 

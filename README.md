@@ -89,4 +89,4 @@ python3 -m unittest discover -s tests -v
 
 ## 上游推理源码
 
-已固定 vLLM、vLLM Ascend、SGLang、Transformers、llama.cpp 和 Maya 的上游 commit，并补充 TokenSpeed、NVIDIA Dynamo、Unsloth、Ollama、Exo、Miles 与 SkyRL 的官方生态入口。使用 `git clone --recurse-submodules` 下载完整参考代码。版本锁、权重 revision 和许可证说明见 [references/README.md](references/README.md)。
+已固定 vLLM、vLLM Ascend、SGLang、Transformers、llama.cpp、Maya、TokenSpeed、Unsloth 和 NVIDIA Dynamo 的上游 commit，并补充 TokenSpeed、NVIDIA Dynamo、Unsloth、Ollama、Exo、Miles 与 SkyRL 的官方生态入口。使用 `git clone --recurse-submodules` 下载完整参考代码。版本锁、权重 revision 和许可证说明见 [references/README.md](references/README.md)。
