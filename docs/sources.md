@@ -73,3 +73,18 @@
 - 两类 A5 的 `npu-smi` 设备识别、显存与实际 CANN 算子支持；不要由产品简称推断配置。
 - 同一权重、输入、dtype 的参考 trace；先按 physical layer/pass/visit 记录，再做端到端质量对比。
 - 每项「支持」声明对应的测试配置和结果文件。未产生测试结果前保持计划状态。
+
+
+## 7. 推理代码仓库与新增参考（2026-11-24）
+
+- [Hugging Face Inkling 2 Mini 专题](https://huggingface.co/blog/inkling2mini)：比旧的 `thinkingmachines-inkling.md` 更贴近 Mini，覆盖 Transformers、SGLang、llama.cpp 等部署。
+- [vLLM Inkling 2 Mini Recipe](https://recipes.vllm.ai/thinkingmachines/Inkling-2-Mini)：官方部署配方，记录 DSpark 与 NVIDIA 验证环境。
+- [vLLM Inkling2 模型实现](https://github.com/vllm-project/vllm/tree/28fb1365a90e9929e4596a72906e309dd7ac701f/vllm/models/inkling2) 和 [模型测试](https://github.com/vllm-project/vllm/tree/28fb1365a90e9929e4596a72906e309dd7ac701f/tests/models/inkling2)：完整源码通过 submodule 固定在本仓库。
+- [SGLang](https://github.com/sgl-project/sglang) 与 [Transformers](https://github.com/huggingface/transformers)：官方支持的 serving 与 HF processor/model 参考。
+- [llama.cpp](https://github.com/ggml-org/llama.cpp)：GGUF loop 架构与量化推理参考，需匹配支持 Inkling2 的版本。
+- [Maya Inkling Mini](https://github.com/alesha-pro/maya-inkling-mini)：MIT 代码的 CUDA/HIP 独立实现，适合研究专家计算、KV/conv 缓存、loop、AttnRes 和 DSpark；不是昇腾后端代码。
+- [NVIDIA Dynamo Mini recipe](https://github.com/ai-dynamo/dynamo/blob/main/recipes/README.md)：以 SGLang 为执行引擎的集群 serving 编排参考，不是新的模型算子实现。
+
+官方模型卡还列出 TokenSpeed、Unsloth、Llama App，以及 Apple Silicon 上的 Ollama / Exo，可作为补充兼容性参考。昇腾移植优先研究 vLLM、vLLM Ascend、SGLang、Transformers 与 llama.cpp。
+
+官方 HF checkpoint 标注 Apache-2.0；Maya 根目录 LICENSE 为 MIT，仓库中还存在其他第三方许可。约 20.2 GB 的官方权重不提交 Git，使用固定 HF revision 单独下载。复制上游代码时保留各自 SPDX、LICENSE 和 NOTICE。

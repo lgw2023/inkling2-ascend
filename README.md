@@ -85,3 +85,8 @@ python3 -m unittest discover -s tests -v
 ## 协作
 
 提交方式与证据要求见 [CONTRIBUTING.md](CONTRIBUTING.md)，任务模板在 `.github/ISSUE_TEMPLATE/`。源码引用保留上游许可证；本仓库未包含模型权重或完整上游代码副本。授权状态见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+
+## 上游推理源码
+
+已固定 vLLM、vLLM Ascend、SGLang、Transformers、llama.cpp 和 Maya 的上游 commit。使用 `git clone --recurse-submodules` 下载完整参考代码。版本锁、权重 revision 和许可证说明见 [references/README.md](references/README.md)。

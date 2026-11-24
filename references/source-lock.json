@@ -1,0 +1,54 @@
+{
+  "reviewed_at": "2026-11-24",
+  "model": {
+    "repository": "https://huggingface.co/thinkingmachines/Inkling-2-Mini",
+    "revision": "1fb4134b9a74f9681054f4ef82e4bf1f458a2337",
+    "license": "Apache-2.0",
+    "weights_mirrored": false,
+    "approximate_size": "20.2 GB"
+  },
+  "repositories": [
+    {
+      "repository": "https://github.com/vllm-project/vllm",
+      "branch": "main",
+      "commit": "28fb1365a90e9929e4596a72906e309dd7ac701f",
+      "path": "references/upstream/vllm",
+      "kind": "git-submodule"
+    },
+    {
+      "repository": "https://github.com/vllm-project/vllm-ascend",
+      "branch": "main",
+      "commit": "79ee8d9bac80585816bacf6932222fc7cc30a00c",
+      "path": "references/upstream/vllm-ascend",
+      "kind": "git-submodule"
+    },
+    {
+      "repository": "https://github.com/sgl-project/sglang",
+      "branch": "main",
+      "commit": "1173264b586a92e534f855a91e59f07644283248",
+      "path": "references/upstream/sglang",
+      "kind": "git-submodule"
+    },
+    {
+      "repository": "https://github.com/huggingface/transformers",
+      "branch": "main",
+      "commit": "d8f10a82213a3a9db48385aba3a4b57ab535de50",
+      "path": "references/upstream/transformers",
+      "kind": "git-submodule"
+    },
+    {
+      "repository": "https://github.com/ggml-org/llama.cpp",
+      "branch": "master",
+      "commit": "af5c58347fdbc2cd19e65b278e81c8f528f8a175",
+      "path": "references/upstream/llama.cpp",
+      "kind": "git-submodule"
+    },
+    {
+      "repository": "https://github.com/alesha-pro/maya-inkling-mini",
+      "branch": "main",
+      "commit": "27daec5e608aa59dab45184e82a1f0611ea7c1aa",
+      "path": "references/upstream/maya-inkling-mini",
+      "kind": "git-submodule"
+    }
+  ]
+}

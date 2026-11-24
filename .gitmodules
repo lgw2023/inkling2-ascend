@@ -1,0 +1,23 @@
+[submodule "references/upstream/vllm"]
+	path = references/upstream/vllm
+	url = https://github.com/vllm-project/vllm.git
+
+[submodule "references/upstream/vllm-ascend"]
+	path = references/upstream/vllm-ascend
+	url = https://github.com/vllm-project/vllm-ascend.git
+
+[submodule "references/upstream/sglang"]
+	path = references/upstream/sglang
+	url = https://github.com/sgl-project/sglang.git
+
+[submodule "references/upstream/transformers"]
+	path = references/upstream/transformers
+	url = https://github.com/huggingface/transformers.git
+
+[submodule "references/upstream/llama.cpp"]
+	path = references/upstream/llama.cpp
+	url = https://github.com/ggml-org/llama.cpp.git
+
+[submodule "references/upstream/maya-inkling-mini"]
+	path = references/upstream/maya-inkling-mini
+	url = https://github.com/alesha-pro/maya-inkling-mini.git
