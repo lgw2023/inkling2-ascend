@@ -6,7 +6,7 @@
 git clone https://github.com/lgw2023/inkling2-ascend.git
 cd inkling2-ascend
 # 先拉与模型开发直接相关的仓库（按需选择）：
-git submodule update --init references/upstream/vllm references/upstream/vllm-ascend references/upstream/transformers references/upstream/tokenspeed references/upstream/unsloth
+git submodule update --init references/upstream/vllm references/upstream/vllm-ascend references/upstream/transformers references/upstream/tokenspeed references/upstream/unsloth references/upstream/dynamo
 # 需要全部完整上游源码时：
 git submodule update --init --recursive
 ```

@@ -112,3 +112,7 @@
 - [Hugging Face Mini 专题](https://github.com/huggingface/blog/blob/6229fabe5f27f7934d825940853bcc1369528c2f/inkling2mini.md) 与 [原 Inkling 文章](https://github.com/huggingface/blog/blob/6229fabe5f27f7934d825940853bcc1369528c2f/thinkingmachines-inkling.md)：保留链接和来源信息，不复制整篇受版权保护的文章。
 
 上述三套新代码仓库已经作为固定 commit 的 submodule 加入；模型专用文件快照及许可证说明见 `reference-snapshots/`。完整仓库体积较大，推荐先按需初始化 submodule，不必一次下载全部框架。
+
+## 9. 模型专用源码快照与参考索引
+
+本仓库新增 `reference-snapshots/tokenspeed/`、`reference-snapshots/unsloth/` 和 `reference-snapshots/dynamo/`。内容包括 TokenSpeed 的 Inkling runtime/GFX950 kernel/test，Unsloth 的 Inkling2/FlexAttention/loader，以及 Dynamo 的 Mini SGLang deployment manifests。许可证文本随快照保存；完整上游版本由 submodule 固定。Hugging Face 博客文章只保留链接，不复制全文。统一索引见 [references/articles/README.md](../references/articles/README.md)，快照说明见 [reference-snapshots/README.md](../reference-snapshots/README.md)。
