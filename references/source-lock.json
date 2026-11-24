@@ -13,14 +13,18 @@
       "branch": "main",
       "commit": "28fb1365a90e9929e4596a72906e309dd7ac701f",
       "path": "references/upstream/vllm",
-      "kind": "git-submodule"
+      "kind": "git-submodule",
+      "eligible_as_v1_runtime_base": false,
+      "purpose": "Source comparison only; this pin no longer contains the historical V1 model runner."
     },
     {
       "repository": "https://github.com/vllm-project/vllm-ascend",
       "branch": "main",
       "commit": "79ee8d9bac80585816bacf6932222fc7cc30a00c",
       "path": "references/upstream/vllm-ascend",
-      "kind": "git-submodule"
+      "kind": "git-submodule",
+      "eligible_as_v1_runtime_base": false,
+      "purpose": "Source comparison only; this pin no longer contains the historical V1 model runner."
     },
     {
       "repository": "https://github.com/sgl-project/sglang",
@@ -80,6 +84,7 @@
       "vllm_ascend/worker/worker.py"
     ],
     "purpose": "historical V1 Model Runner implementation and worker selection logic",
-    "note": "reference only; requires API backport/qualification against the selected vLLM V1 engine; current main snapshot no longer contains this V1 path"
-  }
+    "note": "Reference only; prefer porting Mini onto a matched V1-capable vLLM / Ascend baseline. A newer project branch must maintain the complete V1 execution chain; qualification remains pending."
+  },
+  "target_execution_path": "vllm_v1_engine_with_ascend_model_runner_v1"
 }

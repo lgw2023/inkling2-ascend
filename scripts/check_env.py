@@ -20,8 +20,10 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGES = ("torch", "torch-npu", "vllm", "vllm-ascend", "triton-ascend", "fla-npu")
+V1_RUNNER_CLASS = "vllm_ascend.worker.v1.model_runner.NPUModelRunner"
+RUNNER_POLICY = {"engine": "v1", "model_runner": "v1", "use_v2_model_runner": False}
 GATES = (
-    "hardware_and_stack_verified", "model_adapter_registered", "bf16_loader_verified",
+    "hardware_and_stack_verified", "v1_runner_verified", "model_adapter_registered", "bf16_loader_verified",
     "operator_parity_passed", "cache_isolation_passed", "tp_parity_passed", "text_e2e_passed",
 )
 
@@ -84,8 +86,19 @@ def qualification_errors(path, profile, tp):
     except (OSError, ValueError):
         return ["qualification file is missing or invalid JSON"]
     errors = []
-    if data.get("schema_version") != 1 or data.get("status") != "qualified":
+    if data.get("schema_version") != 2:
+        errors.append("qualification schema_version must be 2 with V1 runner evidence")
+    if data.get("status") != "qualified":
         errors.append("qualification status must be qualified (current template is not qualified)")
+    policy = data.get("runner_policy")
+    if not isinstance(policy, dict):
+        errors.append("runner_policy is required: V1 engine and Model Runner V1 only")
+    else:
+        for key, expected in RUNNER_POLICY.items():
+            actual = policy.get(key)
+            matches = (actual is False) if expected is False else (actual == expected)
+            if not matches:
+                errors.append(f"runner_policy.{key} must be {expected!r}; MRV2 is not supported")
     if data.get("weight_format") != "dequantized_bf16":
         errors.append("this launch template requires the separately verified BF16 conversion/loader path")
     for key in ("model", "vllm", "vllm_ascend", "adapter"):
@@ -101,6 +114,8 @@ def qualification_errors(path, profile, tp):
         if not data.get("runtime_versions", {}).get(key):
             errors.append(f"runtime_versions.{key} is not recorded")
     selected = data.get("profiles", {}).get(profile, {})
+    if selected.get("observed_runner_class") != V1_RUNNER_CLASS:
+        errors.append(f"{profile}.observed_runner_class must record the verified {V1_RUNNER_CLASS}")
     if not isinstance(selected.get("memory_total_bytes"), int) or selected["memory_total_bytes"] <= 0:
         errors.append("measured per-device memory_total_bytes is required")
     if tp not in selected.get("validated_tp_sizes", []):
@@ -130,11 +145,23 @@ def command_for(args):
     ]
 
 
-def validate_cli(command):
+def launch_environment(devices):
+    """Apply the project runner choice to child processes, without changing the shell.
+
+    This flag requires a qualified V1-capable branch. It does not restore V1 in
+    upstream versions that removed it, nor prove which class was instantiated.
+    """
+    env = os.environ.copy()
+    env["ASCEND_RT_VISIBLE_DEVICES"] = devices
+    env["VLLM_USE_V2_MODEL_RUNNER"] = "0"
+    return env
+
+
+def validate_cli(command, env):
     if shutil.which("vllm") is None:
         return ["vllm is not installed in the selected environment"]
     try:
-        done = subprocess.run(["vllm", "serve", "--help=all"], capture_output=True, text=True, timeout=45)
+        done = subprocess.run(["vllm", "serve", "--help=all"], capture_output=True, text=True, timeout=45, env=env)
     except (OSError, subprocess.TimeoutExpired):
         return ["could not read the installed vLLM serve help"]
     if done.returncode:
@@ -152,9 +179,11 @@ def launch(args):
     if len(ids) != args.tp or len(set(ids)) != args.tp:
         raise ValueError("device count must equal TP and device IDs must be distinct")
     command = command_for(args)
+    env = launch_environment(devices)
     print("Profile:", args.profile)
     print("Mode:", "EXECUTE after qualification checks" if args.execute else "DRY RUN (no model or device is loaded)")
-    print("ASCEND_RT_VISIBLE_DEVICES=" + devices + " " + shlex.join(command), flush=True)
+    print("Runner: vLLM V1 engine / Ascend Model Runner V1 (MRV2 disabled)")
+    print("ASCEND_RT_VISIBLE_DEVICES=" + devices + " VLLM_USE_V2_MODEL_RUNNER=0 " + shlex.join(command), flush=True)
     if not args.execute:
         print("This repository does not contain a completed Inkling2 Ascend adapter. See docs/deployment.md.")
         return 0
@@ -163,13 +192,11 @@ def launch(args):
         errors.append("--model must be a local qualified checkpoint directory with config.json")
     # Read the installed CLI only after recorded model qualification passes.
     if not errors:
-        errors.extend(validate_cli(command))
+        errors.extend(validate_cli(command, env))
     if errors:
         for error in errors:
             print("BLOCKED:", error, file=sys.stderr)
         return 2
-    env = os.environ.copy()
-    env["ASCEND_RT_VISIBLE_DEVICES"] = devices
     os.execvpe(command[0], command, env)
     return 0
 

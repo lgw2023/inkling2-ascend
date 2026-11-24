@@ -36,6 +36,7 @@
 |---|---|
 | 理解模型、循环与权重共享 | [architecture.md](docs/architecture.md) |
 | 按仓库文件拆改造任务 | [vllm-ascend-integration.md](docs/vllm-ascend-integration.md) |
+| 选择非 MRV2 执行链与兼容版本 | [runner-selection.md](docs/runner-selection.md) |
 | 实现算子、核对张量形状和精度 | [operator-design.md](docs/operator-design.md) |
 | 设计 KV / conv 状态与多请求生命周期 | [cache-and-loop.md](docs/cache-and-loop.md) |
 | 处理 NVFP4 / MXFP8、BF16 基线和权重索引 | [quantization.md](docs/quantization.md) |
@@ -94,4 +95,6 @@ python3 -m unittest discover -s tests -v
 
 ## 执行器约束
 
-本项目只适配 Ascend Model Runner V1，不适配 Model Runner V2（MRV2）。当前 vLLM Ascend main 已不包含历史 V1 runner 路径；需要在项目选定分支中回移/适配历史 V1 runner。历史源码与版本说明见 [V1 runner 决策](docs/runner-selection.md)。
+本项目只适配 **vLLM V1 Engine + Ascend Model Runner V1**，文本、图像和后续图模式均沿用这条路径。启动模板在 dry-run、CLI 检查和实际运行中统一设置 `VLLM_USE_V2_MODEL_RUNNER=0`；资格文件还要求 V1 runner 类与实际运行验证记录。
+
+当前固定的上游源码快照已移除旧 runner，只用于源码参考。优先在保留 V1 runner 的匹配 vLLM / Ascend 基线上移植 Mini；若选择较新基线，则须在项目分支维护完整 V1 执行链及缓存接口适配。设置环境变量不会恢复已删除的代码。版本选择与文件改造见 [V1 runner 决策](docs/runner-selection.md)。

@@ -43,7 +43,7 @@ message bank 是当前 forward 的临时张量，不应错误估算为另一整�
 
 ## 3. Conv state 的逻辑布局
 
-上游短卷积 owner 复用 `AttentionLayerBase`，通过 `get_kv_cache_config()` 返回 `KVCacheLayerConfig`：`AttentionSpec(..., head_size_v=0)` 加 `SlidingWindowManager.layer_config(...)`。attention KV 与 conv state 都以 owner 形式进入缓存发现和绑定流程。
+上游短卷积 owner 复用 `AttentionLayerBase`，通过 `get_kv_cache_config()` 返回 `KVCacheLayerConfig`：`AttentionSpec(..., head_size_v=0)` 加 `SlidingWindowManager.layer_config(...)`。attention KV 与 conv state 都以 owner 形式进入缓存发现和绑定流程。这是上游新接口描述；本项目使用历史 Model Runner V1，需要按下节将该契约映射到所选 V1 基线。
 
 设每 rank KV heads 为 `Hlocal`，head dimension 为 d。Mini 路径使用 `replicate_hidden=True`，因此 attention-output / MLP-output 的完整 hidden 状态在每个 TP rank 上保留：
 
@@ -70,7 +70,21 @@ $$
 
 同一 forward 内的旧 taps 从不可变输入读取；早于本次 query 开始的 taps 才从历史 cache 读取。新请求起始不足窗口的部分按参考实现填零。padding 不写状态、不参与路由，也不污染 LSE 或输出。decode/prefill 混排时，所有 per-token metadata 必须采用同一 token 排序。
 
-本项目不采用 MRV2 的共享 backing / backend-specific view 接入路径。缓存接入以 V1 runner 的 `get_kv_cache_spec()`、`initialize_kv_cache()`、V1 attention layer binding 和 `AttentionMetadataBuilder` 生命周期为准。将 Attention KV 与 Conv State 注册为 V1 可发现的 cache owner，由 V1 worker 完成分配、绑定和请求块回收；若 V1 接口无法表达某种 cache layout，再在 V1 runner / cache binding 层做最小扩展。历史接口参考：[V1 model_runner.py](https://github.com/vllm-project/vllm-ascend/blob/f16e5e26801f86b071bca6454c9b9b2b63362e0a/vllm_ascend/worker/v1/model_runner.py) 与 [V1 worker.py](https://github.com/vllm-project/vllm-ascend/blob/f16e5e26801f86b071bca6454c9b9b2b63362e0a/vllm_ascend/worker/worker.py)。当前 Ascend main 已无该旧路径，必须回移/适配，不能把旧文件直接覆盖到新版本。
+缓存接入固定使用 **Model Runner V1** 的 `get_kv_cache_spec()`、`initialize_kv_cache()`、layer binding 和 `AttentionMetadataBuilder` 生命周期。将 Attention KV 与 Conv State 注册为 V1 可发现的 cache owner，由 V1 worker 完成分配、绑定和请求块回收；必要扩展限定在 V1 runner / cache binding 层。优先在仍保留 V1 的匹配版本上移植 Mini，版本选择见 [runner-selection.md](runner-selection.md)。历史接口参考：[V1 model_runner.py](https://github.com/vllm-project/vllm-ascend/blob/f16e5e26801f86b071bca6454c9b9b2b63362e0a/vllm_ascend/worker/v1/model_runner.py) 与 [V1 worker.py](https://github.com/vllm-project/vllm-ascend/blob/f16e5e26801f86b071bca6454c9b9b2b63362e0a/vllm_ascend/worker/worker.py)。
+
+### 4.1 新旧 owner 接口桥接
+
+当前上游 `AttentionLayerBase` 的抽象方法是 `get_kv_cache_config() -> KVCacheLayerConfig | None`；历史 Ascend V1 runner 则逐层调用 `get_kv_cache_spec(vllm_config)`。两者返回对象承载的信息不同，需要在模型 cache owner、backend 与 V1 binding 中实现以下映射，不能只改方法名。[当前 attention 基类](https://github.com/vllm-project/vllm/blob/28fb1365a90e9929e4596a72906e309dd7ac701f/vllm/model_executor/layers/attention_layer_base.py)、[Mini attention owner](https://github.com/vllm-project/vllm/blob/28fb1365a90e9929e4596a72906e309dd7ac701f/vllm/models/inkling2/nvidia/attention.py)。
+
+| 上游 Mini 契约 | V1 适配职责 | 验证点 |
+|---|---|---|
+| `KVCacheLayerConfig` 的物理 spec 与 manager 配置 | 返回所选 V1 接受的 `KVCacheSpec`，同时将 full/local/conv 窗口规则映射到该版本的缓存分组与 manager | 容量预算、窗口回收和每个 owner 的保留长度一致 |
+| 每 pass 的 `AttentionLayerBase` owner | 注册进 V1 static forward context，提供该版本的 owner 与 backend 接口 | 48 个 attention + 48 个 conv owner 全部被发现，不能只发现 24 个物理层 |
+| conv `head_size_v=0`、四流 packed view | 保留单份 packed 缓存的字节预算、view、stride 和流切片，避免套用普通 K/V 双缓存 reshape | TP2/4/8、放大物理页后仍正确寻址 |
+| backend / metadata builder | 接入 V1 `_allocate_kv_cache_tensors()`、`_reshape_kv_cache_tensors()` 和 layer binding；保持 token 排序与 slot mapping | prefill/decode 混排、padding、跨页与请求结束正确 |
+| 请求级缓存生命周期 | 通过所选 V1 manager 分配、回收并按需清零，不在模型内维护第二套调度 | 取消、重算、块复用及请求交错不串状态 |
+
+`get_kv_cache_config()` 属于 V1 Engine 公共缓存层，本身并不等同于 MRV2。历史 V1 runner 也声明了部分 standardized shared KV backing 支持；共享 backing 或 backend-specific view 不是 MRV2 独有能力。本项目按所选 V1 的实现验证这些布局，排除对 `worker/v2/` 执行链的依赖，不复制 MRV2 runner 接入代码。
 
 ## 5. 内存估算规则
 
@@ -87,6 +101,7 @@ $$
 ## 6. 缓存验收断言
 
 - 48 个 attention owner 与 48 个 conv owner 均被发现、分配、绑定；每个核心 pass 独立，物理层权重仍共享。
+- 新旧 owner 接口桥接后，物理字节数、full/local 窗口规则及 conv packed view 与参考一致；实际构造的 runner 为 V1。
 - 同一请求按一次 prefill、不同 chunk 切分、逐 token 输入，状态和 logits 在规定误差内一致。
 - 两请求交错执行与分别执行一致；请求结束后物理块复用无旧状态泄漏。
 - 跨 `W-1/W/W+1`、物理页边界、SWA 边界的输出一致；打乱物理 block id 不改变逻辑结果。

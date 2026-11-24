@@ -9,12 +9,20 @@
   },
   "vllm_ascend": {
     "repository": "https://github.com/vllm-project/vllm-ascend",
-    "commit": "1999fa582aba279dc4214de7ea3035535917d4c4"
+    "commit": "1999fa582aba279dc4214de7ea3035535917d4c4",
+    "eligible_as_v1_runtime_base": false,
+    "purpose": "Source reading only; this snapshot removed Model Runner V1."
   },
   "model": {
     "repository": "https://huggingface.co/thinkingmachines/Inkling-2-Mini",
     "revision": "1fb4134b9a74f9681054f4ef82e4bf1f458a2337",
     "downloaded_weights_verified": false
   },
-  "hardware_validation_performed": false
+  "hardware_validation_performed": false,
+  "target_execution_path": "vllm_v1_engine_with_ascend_model_runner_v1",
+  "ascend_v1_runner_reference": {
+    "repository": "https://github.com/vllm-project/vllm-ascend",
+    "commit": "f16e5e26801f86b071bca6454c9b9b2b63362e0a",
+    "purpose": "Historical V1 runner structure; select and qualify a matching vLLM / Ascend baseline before porting Mini."
+  }
 }

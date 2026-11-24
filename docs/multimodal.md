@@ -1,5 +1,7 @@
 # 第二阶段：图像接入
 
+图像阶段沿用 **Ascend Model Runner V1**；vision、multimodal metadata 与 ACL Graph 优化均在所选 V1 执行链内验收，见 [runner-selection.md](runner-selection.md)。
+
 首期验收以纯文本为范围；本章为后续实现任务。源码依据采用 [来源清单](sources.md) 中固定的 Mini revision 与模型配置。
 
 ## 依赖关系

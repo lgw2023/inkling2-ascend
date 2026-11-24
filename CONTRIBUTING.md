@@ -2,6 +2,8 @@
 
 优先按 [ROADMAP.md](ROADMAP.md) 的任务编号提交小范围变更，注明属于资料更正、工程实现还是实机验证。
 
+执行路径固定为 **vLLM V1 Engine + Ascend Model Runner V1**。模型、缓存、图像和性能改造均不引入 MRV2 运行依赖；修改启动或 worker 选择逻辑时，补充 V1 类实际构造及 MRV2 未构造的验证，见 [runner-selection.md](docs/runner-selection.md)。
+
 ## 修改前
 
 1. 固定模型 revision、vLLM / vLLM Ascend commit 与运行环境版本。

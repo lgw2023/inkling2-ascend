@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "status": "not_qualified",
   "reviewed_at": null,
   "weight_format": "dequantized_bf16",
@@ -35,9 +35,11 @@
         "operator_parity_passed": false,
         "cache_isolation_passed": false,
         "tp_parity_passed": false,
-        "text_e2e_passed": false
+        "text_e2e_passed": false,
+        "v1_runner_verified": false
       },
-      "evidence": []
+      "evidence": [],
+      "observed_runner_class": null
     },
     "a5-950pr": {
       "hardware": "Ascend 950PR",
@@ -51,9 +53,11 @@
         "operator_parity_passed": false,
         "cache_isolation_passed": false,
         "tp_parity_passed": false,
-        "text_e2e_passed": false
+        "text_e2e_passed": false,
+        "v1_runner_verified": false
       },
-      "evidence": []
+      "evidence": [],
+      "observed_runner_class": null
     },
     "a5-950dt": {
       "hardware": "Ascend 950DT",
@@ -67,9 +71,16 @@
         "operator_parity_passed": false,
         "cache_isolation_passed": false,
         "tp_parity_passed": false,
-        "text_e2e_passed": false
+        "text_e2e_passed": false,
+        "v1_runner_verified": false
       },
-      "evidence": []
+      "evidence": [],
+      "observed_runner_class": null
     }
+  },
+  "runner_policy": {
+    "engine": "v1",
+    "model_runner": "v1",
+    "use_v2_model_runner": false
   }
 }

@@ -6,6 +6,8 @@
 
 每次实验保存：模型仓库 revision、配置与 tokenizer hash、权重转换清单、vLLM/Ascend commit、CANN/driver/firmware/torch/torch_npu 版本、卡型号与显存、TP/EP/DP 实际分组、启动参数、输入 token ids、随机种子及输出。公开结果使用可分享的合成文本或公开评测集，不上传真实业务请求或完整环境变量。
 
+执行器统一使用 **vLLM V1 Engine + Ascend Model Runner V1**。记录 `VLLM_USE_V2_MODEL_RUNNER=0`、resolved `use_v2_model_runner=False`、实际 runner 类路径和 worker 构造证据；没有 V1 运行验证时，不填写 `v1_runner_verified=true`。版本选择见 [runner-selection.md](runner-selection.md)。
+
 比较分两条路径：
 
 - **数值移植基线：**同一份解码后的 BF16 专家权重、相同算子舍入点，用 torch/已知正确参考与 NPU 结果做逐层比较。
@@ -17,15 +19,16 @@
 
 | 层级 | 测试内容 | 必测形状 / 场景 | 放行条件 |
 |---|---|---|---|
+| T0 Runner | V1 选择、父类/API 兼容、worker 生命周期 | 调用者 MRV2=1；缺失/错误资格记录；基础模型与 Mini；A2 / A5 分别验证 | 子进程强制选择 V1；实际 V1 类被构造；MRV2 构造器未调用；load/profile/cache/execute/sample 通过 |
 | T0 配置/加载 | architecture、visit、分片、转换清单、missing/unexpected、dtype | 固定 Mini；无图像；TP1/2/4/8 的合法性；错误配置 | 错误明确失败；48 visits；参数不重复；加载覆盖完整 |
 | T1 算子 | AttnRes、pair/blend norm、controller、SiTU、router、静态/动态 conv | T=0/1/2/7/32/257；真实 D=2304；stream 广播；零与极值 | 对 torch oracle；无 NaN/Inf；逐组件误差达标 |
 | T1 Attention | Q/K/V clipping、relative bias、value norm、gate/sink、LSE | local/full；单/多 query；页边界；多请求；padding | 与短序列显式 attention 对齐 |
-| T2 Cache | owner 绑定、pass 隔离、流偏移、块回收 | W−1/W/W+1；窗口边界；随机页表；两个交错请求 | 与无缓存参考等价，状态无串扰 |
+| T2 Cache | Mini layer config 到所选 V1 缓存契约的映射、owner 绑定、pass 隔离、块回收 | 48 个 KV 与 48 个 conv owner；W−1/W/W+1；窗口边界；随机页表；交错请求 | V1 分配/绑定/回收完整；与无缓存参考等价，状态无串扰 |
 | T3 Layer | 单 local/full 层、含 controller 的核心层 | pass0/1/2；相同输入的 CUDA/CPU/NPU 对比 | 定位到投影、conv、attention、MoE 和残差各边界 |
 | T4 Model | 48 次访问、tokenizer/LM head、序列分块 | 短文本；多轮 chat；prefill→decode；不同 chunk | 每 visit hidden 与最终 logits 对齐 |
 | T5 Distributed | HCCL、专家分片、路由与合并 | TP2/4/8；专家空分片 token；跨 rank 路由 | 无重复 reduce；与 TP1 小模型一致 |
 | T6 Serving | 服务、并发、取消、请求回收 | batch1、多请求、流式与非流式、超长输入拒绝 | 输出格式与结束原因正确；缓存稳定回收 |
-| T7 Optimizations | ACL Graph、prefix cache、优化 kernel | 每项独立开关，对照 eager | 精度与状态不回退后才记录性能 |
+| T7 Optimizations | V1 ACL Graph、prefix cache、优化 kernel | 每项独立开关，对照 V1 eager | 保持 V1 runner，精度与状态不回退后才记录性能 |
 | T8 Vision | processor、image encoder、投影与 token 拼接 | 单图、多分辨率、文图混批、图像数限制 | 处理器参考一致；图文质量单独评估 |
 
 测试路径建议为 `tests/ut/models/test_inkling2_*.py`、`tests/e2e/inkling2/`（待新增）。NPU 测试应以显式设备标记跳过无 NPU 的环境，跳过不算通过。
@@ -55,7 +58,7 @@ router 应检查 expert ids 和 tie-break。对完全同一 logits 输入，ids 
 | 输入长度 | 128、2K、8K、32K | 逐级扩大，在配置资源内测试 |
 | 输出长度 | 128、512 | 固定输出长度用于可比吞吐 |
 | 并发 | 1、8、32、64 | 显存可行后执行；不把 OOM 点剔除后隐瞒 |
-| 执行路径 | eager；优化 kernel；ACL Graph | 每次只改变一个变量 |
+| 执行路径 | V1 eager；优化 kernel；V1 ACL Graph | 全程保持 V1 runner，每次只改变一个变量 |
 | 阶段 | 纯 prefill、纯 decode、混合负载 | 单独记录及服务综合记录 |
 
 每配置完成预热，再至少测三轮，报告每轮与汇总。单请求延迟和饱和吞吐分开测试；性能稳定阶段再按设备功耗/频率和温度条件排除明显干扰。
@@ -72,7 +75,7 @@ router 应检查 expert ids 和 tie-break。对完全同一 logits 输入，ids 
 
 ## 6. 发布前放行清单
 
-- 完整模型加载、纯文本 eager 服务、至少一种 A2 多卡配置的 T0–T6 通过，才可把状态从“工程设计”改为“可运行”。
+- V1 runner 选择与生命周期、完整模型加载、纯文本 eager 服务、至少一种 A2 多卡配置的 T0–T6 通过，才可把状态从“工程设计”改为“可运行”。
 - 每个优化项都有同配置 eager 对照；明确支持的设备、版本、dtype、TP、上下文与并发范围。
 - A2 的结果不自动覆盖 A5；950PR 与 950DT 分别记录。
 - 文本通过后再验收图像；图像限制为零的文本服务应明确拒绝图片请求。

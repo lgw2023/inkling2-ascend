@@ -16,15 +16,17 @@
 
 这是引擎参考环境，不是本项目兼容性锁文件。当前已有 CANN 的实际版本未知；应先采集，再选择同一发布组合，或为 Inkling2 代码所需的开发提交完成独立兼容验证。不要把上游 `main` 的模型代码和一个旧 release 随意组合。安装入口：[官方 installation](https://docs.vllm.ai/projects/ascend/en/main/getting_started/installation.html)、[dependency version management](https://docs.vllm.ai/projects/ascend/en/main/developer_guide/contribution/dependency_version_management.html)。
 
+**本项目额外要求完整的 V1 runner 执行链。** 上表版本并未通过本项目的 V1 + Mini 验证。当前固定的最新 vLLM / Ascend 源码已删除旧 runner；应先按 [执行器选择](runner-selection.md) 确定保留 V1 的匹配基线或维护 V1 的项目分支，再生成部署锁。
+
 A2 的官方常规 pip 构建说明不能自动套到 A5。A5 应选与具体 PR/DT 产品匹配的镜像、wheel variant 或源码构建配置。驱动/固件按实际主机与发布矩阵确定；本仓库不提供自动替换驱动的脚本。
 
 ## 2. 首次准备步骤
 
 1. 用 `scripts/collect_env.sh` 取得包版本白名单。按本机真实安装路径加载 CANN/NNAL 环境；版本缺失项人工填写。
 2. 固定四个提交：模型 checkpoint、vLLM、vLLM Ascend、适配代码。同时记录镜像 digest 或 Python 依赖锁、CANN/NNAL/driver/firmware 版本。
-3. 完成 [文件级改造](vllm-ascend-integration.md)，确认模型 registry、NPU attention、conv/cache、controller 与 BF16 MoE/loader 已接入。
-4. 按 [测试计划](benchmark-plan.md) 跑完目标设备的算子、缓存隔离、TP 和纯文本端到端验收，留下实际结果文件。
-5. 用测试证据填写 `configs/qualification.json`。只有已验证的卡型和 TP 值加入 `validated_tp_sizes`，未完成项保持 `false`。
+3. 完成 V1 基础模型回归和 [文件级改造](vllm-ascend-integration.md)，确认 worker 构造 V1 runner，模型 registry、NPU attention、conv/cache、controller 与 BF16 MoE/loader 已接入。
+4. 按 [测试计划](benchmark-plan.md) 跑完目标设备的 V1 runner 选择、算子、缓存隔离、TP 和纯文本端到端验收，留下实际结果文件。
+5. 用测试证据填写 `configs/qualification.json`（schema 2）。`runner_policy` 固定为 `engine=v1`、`model_runner=v1`、`use_v2_model_runner=false`；各卡型填写实际 `observed_runner_class` 和 `v1_runner_verified`。只有已验证的卡型和 TP 值加入 `validated_tp_sizes`，未完成项保持 `false`。
 
 `--dtype bfloat16` 只决定所支持路径的运行 dtype，不能把 upstream 的 NVIDIA NVFP4/MXFP8 专家实现自动转成昇腾 BF16 实现。需要独立转换/加载器及 BF16 expert 模块。转换结果是量化权重的反量化近似，不是恢复训练时原始 BF16 权重，见 [量化计划](quantization.md)。
 
@@ -44,6 +46,7 @@ bash scripts/serve_a5.sh --profile a5-950pr --tp 2 --devices 0,1 --model /models
 
 | 参数 | 首期设置 | 目的 |
 |---|---|---|
+| runner 环境变量 | `VLLM_USE_V2_MODEL_RUNNER=0` | 在 V1 兼容分支选择 V1 runner |
 | served model name | `inkling2-mini` | 请求端与服务端名称一致 |
 | TP / PP | 2 / 1 | 从双卡真实模型起步 |
 | distributed executor | `mp` | 单机进程执行 |
@@ -57,7 +60,7 @@ bash scripts/serve_a5.sh --profile a5-950pr --tp 2 --devices 0,1 --model /models
 | speculative decoding | 不配置 | 首期不接 MTP/DSpark 等附加路径 |
 | bind / port | 127.0.0.1 / 8000 | 本机验证 |
 
-脚本使用 `ASCEND_RT_VISIBLE_DEVICES` 指定实例设备；只在实际执行的子进程环境设置，不修改用户 shell。设备列表必须与 TP 数量相等且无重复。TP=8 可用于八卡对照，不作为默认性能建议。
+脚本使用 `ASCEND_RT_VISIBLE_DEVICES` 指定实例设备，并固定 `VLLM_USE_V2_MODEL_RUNNER=0`。dry-run 打印的两个环境值与 CLI 校验、实际执行一致；即使调用者环境设置了 MRV2=1，启动子进程仍按本项目要求设为 0，不修改用户 shell。设备列表必须与 TP 数量相等且无重复。TP=8 可用于八卡对照，不作为默认性能建议。
 
 ## 4. 完成适配后的实际执行
 
@@ -71,7 +74,7 @@ bash scripts/serve_a2.sh \
   --execute
 ```
 
-执行模式检查资格文件、完整提交哈希记录、实际安装包版本、内存字段、卡型/TP 验证记录和 checkpoint 的 `config.json`。它再读取**本机安装版本**的 `vllm serve --help=all`，核实每个将使用的 flag 都存在；遇到不支持的 flag 会停止，不静默删除参数。该检查能防止明显配置误用，不替代代码或测试证据审查。
+执行模式检查资格文件、V1 runner 策略与验证记录、完整提交哈希、实际安装包版本、内存字段、卡型/TP 验证记录和 checkpoint 的 `config.json`。实际 runner 类须记录为项目目标 `vllm_ascend.worker.v1.model_runner.NPUModelRunner`。旧 schema、缺失策略、MRV2 策略或没有 V1 验证证据的配置均不放行。它再用相同的 runner 环境读取**本机安装版本**的 `vllm serve --help=all`，核实每个将使用的 flag 都存在；遇到不支持的 flag 会停止。资格文件记录已完成的验证，不是通过填字段实现 runner 适配。
 
 CLI 参考：[vLLM CLI Guide](https://docs.vllm.ai/en/latest/cli/)、[v0.32.0 serve](https://docs.vllm.ai/en/v0.32.0/cli/serve/)。如果所选提交改变参数，先改脚本与文档，再重跑验证。
 
@@ -93,6 +96,8 @@ chat template 使用固定 checkpoint 所附模板，并与参照环境保持一
 脚本只在普通 CPU 工作区检查语法、dry-run 参数生成和未资格化配置的阻断行为；没有调用 Ascend 设备、没有启动 vLLM、没有加载模型。具体本地检查结果由本仓库初次提交的验证说明记录。A2/A5 的精度、速度、峰值内存和连续服务稳定性仍待实际机器测试。
 
 
-## Model Runner generation constraint
+## 7. V1 runner 选择与运行验证
 
-The deployment target is **Ascend Model Runner V1 only**. Do not launch with `use_v2_model_runner=True`, and do not rely on a current vLLM Ascend main checkout that only provides the V2 worker path. The V1 runner must first be restored/backported and qualified against the selected vLLM V1 engine. The exact CLI/config mechanism is version-dependent; verify the resolved config at startup and fail closed if V2 is selected. See [runner-selection.md](runner-selection.md).
+`VLLM_USE_V2_MODEL_RUNNER=0` 的作用是选择保留 V1 的执行路径。当前固定 Ascend 新版对这个值明确报错，因为其 V1 runner 已删除；应换成已验证的 V1 兼容项目分支，不应删除该变量后继续启动 MRV2。来源：[历史选择器](https://github.com/vllm-project/vllm-ascend/blob/f16e5e26801f86b071bca6454c9b9b2b63362e0a/vllm_ascend/mrv2_utils.py)、[当前固定快照的删除说明](https://github.com/vllm-project/vllm-ascend/blob/79ee8d9bac80585816bacf6932222fc7cc30a00c/vllm_ascend/mrv2_utils.py)。
+
+环境变量只是启动约束；实机报告还须记录 resolved `use_v2_model_runner=False`、V1 类完整路径、worker 构造与缓存生命周期测试。vLLM V1 Engine 与 Model Runner 的代际是两个概念；本项目继续使用 V1 Engine，不设置 `VLLM_USE_V1=0`。详见 [runner-selection.md](runner-selection.md)。

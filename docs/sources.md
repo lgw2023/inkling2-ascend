@@ -123,4 +123,11 @@
 
 ## 10. Model Runner 选择约束（用户决策）
 
-本项目只采用 Ascend Model Runner V1，明确不适配 MRV2。当前 vLLM Ascend 阅读快照 `1999fa...` 已不含 `worker/v1/model_runner.py`；历史 commit `f16e5e26801f86b071bca6454c9b9b2b63362e0a` 含 V1 runner 与 worker 选择逻辑。该历史版本作为代码结构参考，需要回移/适配到实际选定的 vLLM V1 engine API。不能将旧文件不经适配直接与当前 main 拼装。
+本项目只采用 Ascend Model Runner V1，明确不适配 MRV2。当前 vLLM Ascend 阅读快照 `1999fa...` 已不含 `worker/v1/model_runner.py`；历史 commit `f16e5e26801f86b071bca6454c9b9b2b63362e0a` 含 V1 runner 与 worker 选择逻辑。优先选定仍保留 V1 runner 的匹配 vLLM / Ascend 基线，再移植 Mini 及所需缓存接口；若采用较新基线，则在项目分支维护完整 V1 兼容执行链。不能将旧文件不经适配直接与当前 main 拼装。
+
+本次复核的配置选择证据：
+
+- [历史 `mrv2_utils.py`](https://github.com/vllm-project/vllm-ascend/blob/f16e5e26801f86b071bca6454c9b9b2b63362e0a/vllm_ascend/mrv2_utils.py)：`VLLM_USE_V2_MODEL_RUNNER=0` 优先选择 V1。
+- [当前 submodule 的 `mrv2_utils.py`](https://github.com/vllm-project/vllm-ascend/blob/79ee8d9bac80585816bacf6932222fc7cc30a00c/vllm_ascend/mrv2_utils.py)：选择器无条件返回 V2，并对请求 V1 的 `=0` 报错。该 submodule 只作为源码参考，不是 V1 部署基线。
+
+新旧 runner 父类、cache API 与 worker 构造的逐项核验见 [runner-selection.md](runner-selection.md)。

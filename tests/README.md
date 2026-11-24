@@ -5,7 +5,7 @@
 ## 已执行：规划工具
 
 ```bash
-python3 -m unittest discover -s tests -v
+python3 -m unittest discover -s tests -p test_planning.py -v
 ```
 
 结果：**6 个测试通过**。
@@ -47,6 +47,25 @@ bash scripts/serve_a5.sh --profile a5-950dt --tp 2 --devices 0,1
 ```
 
 这些检查不证明目标设备支持特定 vLLM CLI flag。实际执行模式会查询用户安装版本的 `vllm serve --help=all`，随后仍需模型适配和实机验收。
+
+## 已执行：V1 runner 启动约束回归
+
+本次 V1-only 修改新增 `test_runner_policy.py`，全部测试命令：
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+结果：**12 个测试通过**，包括 6 个规划测试和 6 个启动策略测试。后者验证：
+
+- 调用者环境为 MRV2=1 时，dry-run 仍显示 `VLLM_USE_V2_MODEL_RUNNER=0`，且不启动 CLI、模型或设备。
+- CLI 检查与实际启动使用同一 V1 子进程环境，父环境保持原值。
+- 缺失 runner 策略、V2 策略、非 JSON 布尔 false 均被拒绝。
+- 资格记录必须有实际 V1 类路径及 `v1_runner_verified`。
+- schema 1 不能绕过 schema 2 新增的 runner 验证。
+- 默认未资格化配置在 A2、950PR、950DT 三种 profile 下均阻止执行。
+
+同期重新通过 Python 编译、3 份 shell 语法检查与 A2 TP2/TP8、A5 950PR/950DT 共 4 种 dry-run。策略单元测试中的已资格化记录、CLI 帮助和启动调用均为 CPU mock；这些结果只证明脚本约束，真实 V1 类构造与 NPU 推理仍按 [测试计划](../docs/benchmark-plan.md) 上机验证。
 
 ## 尚未执行：模型与硬件
 

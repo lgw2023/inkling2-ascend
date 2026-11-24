@@ -18,6 +18,8 @@ assignees: ''
 - 测试 commit / 启动命令 / seed：
 - 上下文 / 输出长度 / 并发 / TP / 实际通信组：
 - dtype / eager 或图模式 / 缓存选项：
+- `VLLM_USE_V2_MODEL_RUNNER` / resolved `use_v2_model_runner`（要求 `0` / `false`）：
+- 实际 runner 类完整路径 / V1 构造日志 / MRV2 未构造的测试证据：
 
 ## 结果
 
@@ -25,6 +27,7 @@ assignees: ''
 
 | 指标 | 结果 | 参考值或判定规则 |
 |---|---|---|
+| V1 runner 选择与生命周期 | | |
 | logits / 算子误差 | | |
 | 贪心生成一致性 | | |
 | TTFT / TPOT | | |

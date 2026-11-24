@@ -4,9 +4,9 @@
 
 ## 1. 适配边界与开发顺序
 
-**执行器决策（用户明确要求）：只适配 Ascend Model Runner V1，禁止采用 Model Runner V2（MRV2）。** 这不是只把配置开关设为 false：当前 vLLM Ascend main 阅读快照已采用 `worker/v2/model_runner.py`，不再包含旧的 `worker/v1/model_runner.py`。因此实施前必须选定与 vLLM V1 engine API 兼容的版本组合，并将历史 V1 runner 回移/适配到项目分支；不得把当前 main 的 V2 runner 当作实现基底。
+**执行器决策：使用 vLLM V1 Engine + Ascend Model Runner V1，排除 Model Runner V2（MRV2）。** 当前 Ascend 阅读 / submodule 快照已删除历史 V1 runner，并在配置 patch 中拒绝 `VLLM_USE_V2_MODEL_RUNNER=0`。因此首期优先选定仍保留 MRV1 的匹配 vLLM / Ascend 基线，将 Mini 模型和必要缓存接口移植到该基线；当前 main 固定快照用于源码对照。完整版本决策及来源见 [runner-selection.md](runner-selection.md)。
 
-历史参考：vLLM Ascend commit [`f16e5e26801f86b071bca6454c9b9b2b63362e0a`](https://github.com/vllm-project/vllm-ascend/commit/f16e5e26801f86b071bca6454c9b9b2b63362e0a) 中，V1 runner 位于 `vllm_ascend/worker/v1/model_runner.py`，`worker.py` 在 `use_v2_model_runner=False` 时实例化该类。该提交只作为 V1 代码结构参考，不能视为与当前 vLLM Mini 实现已经兼容。
+历史参考：vLLM Ascend commit [`f16e5e26801f86b071bca6454c9b9b2b63362e0a`](https://github.com/vllm-project/vllm-ascend/commit/f16e5e26801f86b071bca6454c9b9b2b63362e0a) 中，V1 runner 位于 `vllm_ascend/worker/v1/model_runner.py`；`mrv2_utils.py` 接受 `VLLM_USE_V2_MODEL_RUNNER=0`，`worker.py` 在 `use_v2_model_runner=False` 时实例化该类。这是结构参考，尚未完成部署组合资格验证。若改用更新引擎，需另行维护完整 V1 兼容链：当前 vLLM submodule 已删除该历史 runner 继承的 `vllm.v1.worker.gpu_model_runner.GPUModelRunner`，仅恢复 Ascend 单文件不足以运行。
 
 首期范围为 A2 910B1、纯文本、固定三次循环、BF16 计算基线、eager 执行、单机 TP2/TP4，随后 TP8。图像、ACL Graph、低精度 NPU 原生专家、DSpark/MTP、LoRA 和服务侧高级缓存功能分别验收。A5 用同一语义基线建立独立的设备与软件验证记录。
 
@@ -16,7 +16,7 @@
 
 ## 2. 仓库文件级清单
 
-下表的 `新增` 路径是**拟在 vLLM Ascend 中创建**的文件，不表示本工程指南已经包含对应运行时代码。现有路径均以阅读快照为准。
+下表的 `新增` 路径是**拟在 vLLM Ascend 中创建**的文件，不表示本工程指南已经包含对应运行时代码。V1 runner 路径以历史 `f16e5e2...` 为准，其余公共路径需在最终选定的匹配基线上复核；不能把不同快照的文件表视为可直接拼装的运行环境。
 
 | 优先级 | 路径（相对 vLLM Ascend 根目录） | 操作与职责 | 完成判据 |
 |---|---|---|---|
@@ -35,14 +35,17 @@
 | P1 | `vllm_ascend/ops/inkling2/loop.py` | 新增 pair norm、BMM、FP32 blend、RMSNorm | 保留指定舍入点，无错误 stream 广播 |
 | P1 | `vllm_ascend/ops/inkling2/attention.py` | 新增相对偏置 paged attention，返回输出与 LSE；可拆 prologue / gate | SWA/full、跨块、混合 batch 通过 |
 | P1 | `vllm_ascend/ops/inkling2/sconv.py` | 新增静态/动态 conv kernel 及 cache 更新 | 非连续布局和块边界通过 |
-| P0 | `vllm_ascend/worker/v1/model_runner.py` | **目标执行器**：从历史 V1 runner 回移并适配当前选定 vLLM V1 API；负责 `get_kv_cache_spec()`、`initialize_kv_cache()`、layer binding、forward metadata 和 `execute_model()` | 纯文本请求全程只经过 V1 runner；不导入/实例化 MRV2 |
+| P0 | `vllm_ascend/worker/v1/model_runner.py` | **目标执行器**：修改所选历史基线的 V1 runner；接入 cache spec、`initialize_kv_cache()`、layer binding、forward metadata 和 `execute_model()`；桥接 Mini 的新 owner 接口 | 纯文本请求全程只经过 V1 runner；不导入/实例化 MRV2；48+48 个 owner 均正确绑定 |
 | P0 | `vllm_ascend/worker/worker.py` | 选择并实例化 V1 `NPUModelRunner`；启动时检查 `use_v2_model_runner=False`，拒绝误入 V2 | 启动日志明确报告 V1；测试确认 V2 构造器未被调用 |
-| 按需 | `vllm_ascend/worker/v1/kv_block_zeroer.py` | 只在 V1 Cache 生命周期确有需要时接入块清零；遵循 V1 的 block reuse 语义 | 请求回收、块复用无状态残留 |
+| P0 | `vllm_ascend/mrv2_utils.py`、`vllm_ascend/platform.py` | 在所选基线核对配置 hook 和 `VLLM_USE_V2_MODEL_RUNNER=0` 解析；前端、engine-core、worker 均保持 V1 选择，字段缺失时报错 | 环境变量和实际 runner 一致；无 V2-only patch 覆盖选择 |
+| 按需 | `vllm_ascend/worker/v1/kv_block_zeroer.py`（候选路径，需按基线核验） | 只在 V1 cache 生命周期确有需要时接入块清零；遵循 V1 的 block reuse 语义 | 请求回收、块复用无状态残留 |
 | 按需 | `vllm_ascend/ops/fused_moe/fused_moe.py` | 优先使用适配层；确认通用接口无法表达 SiTU/路由后再扩展 | 输出归约语义明确，其他模型回归通过 |
 | P2 | `vllm_ascend/models/inkling2/vision.py` | 新增图像 encoder、projector 的 NPU 运算替换；复用经确认的 processor 契约 | 文图 token 拼接、尺寸与图像样本对齐 |
 | P0/P1 | `tests/ut/models/test_inkling2_*.py`、`tests/e2e/inkling2/` | 拟新增单元、缓存集成、分布式与服务测试 | 按 [验收计划](benchmark-plan.md) 分层放行 |
 
 若采用 Ascend C 自定义算子，应按所选 vLLM Ascend 版本的实际算子构建目录和注册机制新增工程，不预先假设上表 Python 文件就是二进制注册入口。先以 torch 参考实现和设备端组合算子打通，再按 profiler 数据替换热点。
+
+**缓存接口改造是 P0 工作。** 上游 Mini 使用 `get_kv_cache_config() -> KVCacheLayerConfig`，历史 V1 runner 使用 owner 的 `get_kv_cache_spec()`。在拟新增的 attention / sconv backend 与 V1 cache binding 中映射物理 spec、窗口 manager 配置及 metadata，保持 full/local/conv 分组和每 pass 独立状态；不以方法重命名代替语义桥接。新接口属于 V1 Engine 公共层，采用相同语义不意味着适配 MRV2。[接口与验收细节](cache-and-loop.md)。
 
 ## 3. 模型注册与权重加载
 
@@ -77,9 +80,9 @@ ModelRegistry.register_model(
 
 ## 5. 提交拆分建议
 
-- **提交 A：配置与导入。** 注册、纯文本路径、支持矩阵、未知版本显式报错。
+- **提交 A：V1 基线、配置与导入。** 锁定匹配版本、普通模型 V1 回归、配置选择与实际类校验，再完成 Mini 注册、纯文本路径和未知版本显式报错。
 - **提交 B：参考算子与 loader。** 可审查的权重转换、算子 oracle、合成小模型前向。
-- **提交 C：loop 与缓存。** 48 个 visit、每 pass cache owner、chunk/prefix/回收测试。
+- **提交 C：loop 与 V1 缓存桥接。** 48 个 visit、48 个 attention / 48 个 conv owner，新旧缓存接口映射、chunk/prefix/回收测试。
 - **提交 D：A2 eager 完整模型。** TP2/4 精度和服务烟测；TP8 作为后续容量与吞吐对比。
 - **提交 E：优化。** 一次只引入一种 kernel、通信或图优化，保持可切回 reference 的路径。
 - **提交 F：图像。** vision / processor / token 拼接的独立验收。
@@ -92,4 +95,6 @@ ModelRegistry.register_model(
 - [Ascend 模型注册](https://github.com/vllm-project/vllm-ascend/blob/1999fa582aba279dc4214de7ea3035535917d4c4/vllm_ascend/models/__init__.py)
 - [历史 Ascend V1 runner](https://github.com/vllm-project/vllm-ascend/blob/f16e5e26801f86b071bca6454c9b9b2b63362e0a/vllm_ascend/worker/v1/model_runner.py)
 - [历史 Ascend worker 的 V1/V2 选择逻辑](https://github.com/vllm-project/vllm-ascend/blob/f16e5e26801f86b071bca6454c9b9b2b63362e0a/vllm_ascend/worker/worker.py)
+- [历史 Ascend 配置选择](https://github.com/vllm-project/vllm-ascend/blob/f16e5e26801f86b071bca6454c9b9b2b63362e0a/vllm_ascend/mrv2_utils.py)
+- [当前 V1 Engine attention owner 契约](https://github.com/vllm-project/vllm/blob/28fb1365a90e9929e4596a72906e309dd7ac701f/vllm/model_executor/layers/attention_layer_base.py)
 - [Ascend MoE runner](https://github.com/vllm-project/vllm-ascend/blob/1999fa582aba279dc4214de7ea3035535917d4c4/vllm_ascend/ops/fused_moe/fused_moe.py)

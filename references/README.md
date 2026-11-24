@@ -41,4 +41,4 @@ Maya 仓库代码为 MIT，但树中还包含其他第三方许可。各 submodu
 
 ## V1 Model Runner 决策
 
-项目明确只使用 V1 Model Runner，不采用 MRV2。历史实现固定在 `f16e5e26801f86b071bca6454c9b9b2b63362e0a`，选定版本后需要回移/适配；不要把历史 runner 与当前 main 的 V2 worker 直接混用。细节见 [runner-selection.md](../docs/runner-selection.md)。
+项目明确只使用 V1 Model Runner，不采用 MRV2。历史实现固定在 `f16e5e26801f86b071bca6454c9b9b2b63362e0a`。优先在保留 V1 runner 的匹配 vLLM / Ascend 基线上移植 Mini；当前 vLLM `28fb136...` 与 Ascend `79ee8d9...` submodule 用于源码对照，不能作为 V1 部署基线。不要把历史 runner 与当前 main 的 V2 worker 直接混用。细节见 [runner-selection.md](../docs/runner-selection.md)。
