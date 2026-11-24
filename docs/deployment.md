@@ -91,3 +91,8 @@ chat template 使用固定 checkpoint 所附模板，并与参照环境保持一
 ## 6. 当前已验证内容
 
 脚本只在普通 CPU 工作区检查语法、dry-run 参数生成和未资格化配置的阻断行为；没有调用 Ascend 设备、没有启动 vLLM、没有加载模型。具体本地检查结果由本仓库初次提交的验证说明记录。A2/A5 的精度、速度、峰值内存和连续服务稳定性仍待实际机器测试。
+
+
+## Model Runner generation constraint
+
+The deployment target is **Ascend Model Runner V1 only**. Do not launch with `use_v2_model_runner=True`, and do not rely on a current vLLM Ascend main checkout that only provides the V2 worker path. The V1 runner must first be restored/backported and qualified against the selected vLLM V1 engine. The exact CLI/config mechanism is version-dependent; verify the resolved config at startup and fail closed if V2 is selected. See [runner-selection.md](runner-selection.md).

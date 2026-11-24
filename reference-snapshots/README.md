@@ -17,3 +17,10 @@ Apache-2.0. Snapshot includes Inkling 2 Mini SGLang deployment recipes for B200/
 ## Hugging Face blog
 
 The two Inkling articles are linked in `references/articles/README.md`; the full blog text is not copied. The blog repository is large and the article text is not treated as source code to redistribute.
+
+
+## Historical vLLM Ascend V1 Model Runner
+
+`vllm-ascend-v1/` preserves the historical `worker/v1/model_runner.py` and `worker/worker.py` from upstream commit `f16e5e26801f86b071bca6454c9b9b2b63362e0a`. It is the selected runner-generation reference for this project. The worker file contains both historical V1 and V2 selection branches; **only the V1 branch is in scope**. Do not instantiate or port the V2 branch.
+
+The historical runner predates the current Inkling2 vLLM implementation and is not a drop-in install. Port its V1 runner lifecycle to the selected vLLM V1 API, then test against the selected vLLM Ascend base. See [runner-selection.md](../docs/runner-selection.md).
