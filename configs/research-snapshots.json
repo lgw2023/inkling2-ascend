@@ -1,0 +1,20 @@
+{
+  "kind": "source_reading_snapshots_not_a_validated_deployment_lock",
+  "review_date": "2026-11-24",
+  "timezone": "Asia/Shanghai",
+  "vllm": {
+    "repository": "https://github.com/vllm-project/vllm",
+    "commit": "ab18334a4f60da74db7de89fe95594e5ed0cda36",
+    "evidence": "https://github.com/vllm-project/vllm/pull/69028"
+  },
+  "vllm_ascend": {
+    "repository": "https://github.com/vllm-project/vllm-ascend",
+    "commit": "1999fa582aba279dc4214de7ea3035535917d4c4"
+  },
+  "model": {
+    "repository": "https://huggingface.co/thinkingmachines/Inkling-2-Mini",
+    "revision": "1fb4134b9a74f9681054f4ef82e4bf1f458a2337",
+    "downloaded_weights_verified": false
+  },
+  "hardware_validation_performed": false
+}

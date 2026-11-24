@@ -1,0 +1,75 @@
+# 来源、版本与核验记录
+
+核验日期：**2026-11-24（北京时间）**。本文件区分公开事实、工程推导和待测方案。仓库没有发布 Ascend 性能成绩，也没有将上游 NVIDIA 测试标成本项目测试。
+
+## 1. 固定的研究基准
+
+| 对象 | 固定值 | 用途与说明 |
+|---|---|---|
+| vLLM Mini 引入提交 | `ab18334a4f60da74db7de89fe95594e5ed0cda36` | 由 PR #69028 的 `merge_commit_sha` 取得；核心源码已按该 ref 读取 |
+| Mini 发布模型初始上传 | `1fb4134b9a74f9681054f4ef82e4bf1f458a2337` | HF commit 页面提供 `config.json` 及量化 metadata；生产应固定实际下载 revision |
+| vLLM Ascend 阅读快照 | `1999fa582aba279dc4214de7ea3035535917d4c4` | 已按该 ref 复读 registry、runner V2、fused MoE；这是阅读基准，尚未选定经过实机验证的工程组合 |
+| 本机软件和 A5 显存 | 尚未采集 | 用户已确认存在 CANN 环境，未提供具体版本与 A5 容量 |
+
+注意：GitHub 文件接口的 `sha` 通常是 blob SHA，不能当作仓库 commit pin。本表的 vLLM SHA 来自 PR 合并元数据，Ascend SHA 来自仓库提交记录并已据此复读文件。**两个源码快照不是经过验证的兼容软件组合。** 开始实现时应核对双方接口及配套依赖，完成版本资格验证。
+
+## 2. 发布方资料
+
+| 编号 | 来源 | 本仓采用的事实 |
+|---|---|---|
+| S1 | [Thinking Machines：Inkling 2 Mini Model Card](https://thinkingmachines.ai/model-card/inkling-2-mini/) | 26.4B 参数、3.4B 物理激活/约 5.4B 有效激活、24 层共享核心三轮、输入文本/图像输出文本、1M context、混合 NVFP4/MXFP8 |
+| S2 | [Hugging Face 模型](https://huggingface.co/thinkingmachines/Inkling-2-Mini) | 发布权重入口及模型身份 |
+| S3 | [HF 初始上传提交](https://huggingface.co/thinkingmachines/Inkling-2-Mini/commit/1fb4134b9a74f9681054f4ef82e4bf1f458a2337) | 已读取 commit diff 中完整 config：H2304、24Q/8KV、head128、core[6,18)×3、rank64、vision23 等 |
+| S4 | [hf_quant_config.json](https://huggingface.co/thinkingmachines/Inkling-2-Mini/blob/main/hf_quant_config.json) | 已读取各精度组与尺度规则；当前页面的上传提交为上述 S3 |
+
+读取情况：本次检索未能直接打开 HF `config.json` 的 raw/blob 页面，改由已成功读取的上传 commit diff 核验内容。没有据此声称已下载全部权重或完成转换。
+
+## 3. vLLM 源码
+
+以下源码链接固定到同一 vLLM commit。
+
+| 编号 | 源码/记录 | 核验内容 |
+|---|---|---|
+| V1 | [PR #69028](https://github.com/vllm-project/vllm/pull/69028) | 标题 `[Model] Add Inkling 2 Mini`；北京时间 2026-11-22 合并（UTC 11-21）；同时包含 variable-loop research checkpoint；验证硬件列为 NVIDIA |
+| V2 | [configs.py](https://github.com/vllm-project/vllm/blob/ab18334a4f60da74db7de89fe95594e5ed0cda36/vllm/models/inkling2/configs.py) | loop 字段校验、visit 数计算、固定/可变 checkpoint 限制、DSpark visit 约束 |
+| V3 | [nvidia/loop.py](https://github.com/vllm-project/vllm/blob/ab18334a4f60da74db7de89fe95594e5ed0cda36/vllm/models/inkling2/nvidia/loop.py) | Prelude 保存/恢复、上一轮 bank 克隆、四流 controller、FP32 消息融合、独立 pass owner |
+| V4 | [nvidia/model.py](https://github.com/vllm-project/vllm/blob/ab18334a4f60da74db7de89fe95594e5ed0cda36/vllm/models/inkling2/nvidia/model.py) | vision 按 multimodal limit 实例化、权重名称/切分映射、dtype 严格检查、拒绝 BF16 expert |
+| V5 | [nvidia/attention.py](https://github.com/vllm-project/vllm/blob/ab18334a4f60da74db7de89fe95594e5ed0cda36/vllm/models/inkling2/nvidia/attention.py) | q/r/gate/sink/k/v、动态/静态 K/V conv、相对位置 logits、pass cache、LSE、TP partial 输出 |
+| V6 | [quant_config.py](https://github.com/vllm-project/vllm/blob/ab18334a4f60da74db7de89fe95594e5ed0cda36/vllm/models/inkling2/quant_config.py) | 每 tensor 精度 metadata；expert 层格式选择 |
+| V7 | [nvidia/moe.py](https://github.com/vllm-project/vllm/blob/ab18334a4f60da74db7de89fe95594e5ed0cda36/vllm/models/inkling2/nvidia/moe.py) | 路由参数、量化 expert 参数及 loader、输出归约契约 |
+
+算子和 cache 的更细引用见 [operator-design.md](operator-design.md)、[cache-and-loop.md](cache-and-loop.md) 及 [vllm-ascend-integration.md](vllm-ascend-integration.md)。Ascend 阅读快照上的关键入口如下：
+
+- [模型注册入口 `vllm_ascend/models/__init__.py`](https://github.com/vllm-project/vllm-ascend/blob/1999fa582aba279dc4214de7ea3035535917d4c4/vllm_ascend/models/__init__.py)。
+- [NPU model runner V2](https://github.com/vllm-project/vllm-ascend/blob/1999fa582aba279dc4214de7ea3035535917d4c4/vllm_ascend/worker/v2/model_runner.py)。
+- [Ascend fused MoE](https://github.com/vllm-project/vllm-ascend/blob/1999fa582aba279dc4214de7ea3035535917d4c4/vllm_ascend/ops/fused_moe/fused_moe.py)。
+
+## 4. Ascend 与旧 Inkling 记录
+
+| 来源 | 核验当日状态 | 能说明什么 |
+|---|---|---|
+| [Ascend RFC #20812](https://github.com/vllm-project/vllm-ascend/issues/20812) | Open；明确实现与 Ascend 验证待完成 | 较早 Inkling/MTP 适配意向；不是 Mini 完成公告 |
+| [Ascend PR #20831](https://github.com/vllm-project/vllm-ascend/pull/20831) | Open、Draft；`head_sha=1905c66adeca4f1e8bba7d2824d8809e4444cec0` | 两文件、24 行新增；PR 说明 helper 未接入 runtime、NPU 未测 |
+| [旧 Inkling PR #48799](https://github.com/vllm-project/vllm/pull/48799) | RFC 引用的较早模型来源 | 不作为 Mini 代码基准 |
+| [旧 MTP PR #48869](https://github.com/vllm-project/vllm/pull/48869) | RFC 引用的 single-token MTP 来源 | 不等同 Mini 的 DSpark 接入 |
+
+本次核验了 RFC 正文、#20831 元数据和完整变更文件名列表；旧 PR 在此仅用于识别引用关系，未声称逐文件重新审查。#20831 的测试说明只有 lint/语法/空白检查，且完整仓库检查曾在环境初始化阶段停止；不能将其描述为 NPU 可运行实现。
+
+## 5. 工程结论的证据等级
+
+| 结论 | 类型 | 根据 |
+|---|---|---|
+| 24 物理层对应 48 次访问 | 配置事实 + 直接计算 | S3、V2、V3 |
+| 固定 Mini 每轮独立 KV/conv owner | 上游实现事实 | V3、V5 |
+| Ascend 可按自定义模型/后端路线适配 | 工程判断 | 模型计算可拆为通用线性、归一化、路由、卷积、attention；具体 kernel 尚待实现 |
+| BF16 路线需转换器和新 expert/loader | 上游约束 + 工程设计 | S4、V4、V6、V7 |
+| A2 完整模型先 TP2/TP4 | 工程建议 | 用户 64 GB 条件与粗略容量预算，尚无实测吞吐 |
+| A5 可用显存、原生低精度支持和最佳 TP | 待确认 | 必须采集硬件与配套版本，并测试目标算子 |
+
+## 6. 开始实现前需要补齐的证据
+
+- 模型实际 revision、所有 shard SHA256、license 文件和 tensor header 清单。
+- 选定 vLLM 与 vLLM Ascend commit、相应安装说明/支持矩阵，以及 driver/firmware/CANN/torch/torch_npu 版本。
+- 两类 A5 的 `npu-smi` 设备识别、显存与实际 CANN 算子支持；不要由产品简称推断配置。
+- 同一权重、输入、dtype 的参考 trace；先按 physical layer/pass/visit 记录，再做端到端质量对比。
+- 每项「支持」声明对应的测试配置和结果文件。未产生测试结果前保持计划状态。

@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "status": "not_qualified",
+  "reviewed_at": null,
+  "weight_format": "dequantized_bf16",
+  "locked_revisions": {
+    "model": null,
+    "vllm": null,
+    "vllm_ascend": null,
+    "adapter": null
+  },
+  "package_versions": {
+    "torch": null,
+    "torch-npu": null,
+    "vllm": null,
+    "vllm-ascend": null
+  },
+  "runtime_versions": {
+    "driver": null,
+    "firmware": null,
+    "cann_toolkit": null,
+    "cann_ops": null,
+    "nnal": null
+  },
+  "profiles": {
+    "a2": {
+      "hardware": "Ascend 910B1",
+      "reported_memory": "64 GB per device; user supplied",
+      "memory_total_bytes": null,
+      "validated_tp_sizes": [],
+      "gates": {
+        "hardware_and_stack_verified": false,
+        "model_adapter_registered": false,
+        "bf16_loader_verified": false,
+        "operator_parity_passed": false,
+        "cache_isolation_passed": false,
+        "tp_parity_passed": false,
+        "text_e2e_passed": false
+      },
+      "evidence": []
+    },
+    "a5-950pr": {
+      "hardware": "Ascend 950PR",
+      "reported_memory": null,
+      "memory_total_bytes": null,
+      "validated_tp_sizes": [],
+      "gates": {
+        "hardware_and_stack_verified": false,
+        "model_adapter_registered": false,
+        "bf16_loader_verified": false,
+        "operator_parity_passed": false,
+        "cache_isolation_passed": false,
+        "tp_parity_passed": false,
+        "text_e2e_passed": false
+      },
+      "evidence": []
+    },
+    "a5-950dt": {
+      "hardware": "Ascend 950DT",
+      "reported_memory": null,
+      "memory_total_bytes": null,
+      "validated_tp_sizes": [],
+      "gates": {
+        "hardware_and_stack_verified": false,
+        "model_adapter_registered": false,
+        "bf16_loader_verified": false,
+        "operator_parity_passed": false,
+        "cache_isolation_passed": false,
+        "tp_parity_passed": false,
+        "text_e2e_passed": false
+      },
+      "evidence": []
+    }
+  }
+}
